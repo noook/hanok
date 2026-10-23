@@ -1,0 +1,20 @@
+# Copied into Grafana's alerting provisioning by entrypoint.sh only when TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are
+# both set (Grafana expands ${...} from its environment). One contact point and one policy for every project:
+# alerts are grouped by folder (= project) and alert name.
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: hanok-telegram
+    receivers:
+      - uid: hanok-telegram
+        type: telegram
+        settings:
+          chatid: ${TELEGRAM_CHAT_ID}
+          bottoken: ${TELEGRAM_BOT_TOKEN}
+policies:
+  - orgId: 1
+    receiver: hanok-telegram
+    group_by: [grafana_folder, alertname]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

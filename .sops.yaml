@@ -1,0 +1,9 @@
+# SOPS recipients: age public keys only (safe to commit). The maintainer's Mac and docker-host,
+# the same keys as Plouf's secrets. After editing: sops updatekeys stacks/<stack>/secrets.enc.env
+# SOPS matches path_regex against the INPUT file, so a rule on stacks/*/secrets.enc.env never matched
+# `sops --encrypt /tmp/x.env > stacks/<stack>/secrets.enc.env`. Every dotenv file uses the same recipients.
+creation_rules:
+  - path_regex: \.env$
+    age: >-
+      age1392prarwhkgv6szfz8nryr3x6pltqrfd4kr2cyczt0sp0saua4vsasj9da,
+      age13a09uaukqdjvft69xl3ankpt4lgdgv7fl2l69ttrsfz76gzunqhq7d78uz

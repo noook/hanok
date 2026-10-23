@@ -1,0 +1,112 @@
+name: observability
+
+# The homelab's shared monitoring (docs/adr/0003). One Grafana for every project on docker-host.
+#
+#   lgtm      Grafana's all-in-one image: an OpenTelemetry collector, Prometheus, Loki, Tempo and Grafana in one
+#             container, data in the `lgtm-data` volume. Projects send OTLP to http://lgtm:4318 on the shared
+#             `observability` network. Split into separate containers later (see the ADR).
+#   alloy     Grafana Alloy watches Docker, like Traefik does: it ships every container's logs to Loki, and
+#             scrapes the containers labelled `observability.scrape=true` (docs/conventions.md).
+#   docker-proxy  read-only Docker API for Alloy (containers and their logs only), so Alloy never holds the socket.
+#   tailscale-grafana  Grafana on the tailnet as https://grafana.<tailnet>.ts.net (profile `tailnet`).
+#
+# Start it with scripts/up.sh observability (decrypts secrets.enc.env), never with a bare `docker compose up`.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  lgtm:
+    image: grafana/otel-lgtm:0.38.0
+    restart: unless-stopped
+    entrypoint: ["/hanok/entrypoint.sh"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is not set}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3317}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    ports:
+      # Loopback only: an SSH tunnel still works; the tailnet name is the normal way in.
+      - "127.0.0.1:${GRAFANA_PORT:-3317}:3000"
+    volumes:
+      - lgtm-data:/data
+      - ./grafana:/hanok:ro
+      # One read-only mount per project: its dashboards/ and alert-rules/ (docs/conventions.md, "Monitoring a project").
+      - ${PLOUF_MONITORING_DIR:-/opt/stacks/plouf/monitoring/grafana}:/projects/plouf:ro
+    networks: [observability]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null && curl -fsS http://127.0.0.1:3100/ready >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    labels:
+      observability.logs: "false" # its own logs would loop back into Loki
+    logging: *logging
+
+  docker-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1 # list and inspect containers, read their logs
+      NETWORKS: 1 # list networks (discovery labels targets with their network); everything else is refused
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [internal]
+    labels:
+      observability.logs: "false"
+    logging: *logging
+
+  alloy:
+    image: grafana/alloy:v1.21.2
+    restart: unless-stopped
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "--storage.path=/var/lib/alloy", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy
+    networks: [observability, internal]
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      docker-proxy:
+        condition: service_started
+    labels:
+      observability.logs: "false"
+    logging: *logging
+
+  tailscale-grafana:
+    image: tailscale/tailscale:v1.104.2
+    profiles: [tailnet]
+    restart: unless-stopped
+    hostname: grafana
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_GRAFANA:-}
+      TS_HOSTNAME: grafana
+      TS_EXTRA_ARGS: --advertise-tags=tag:grafana
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/grafana.json
+      TS_USERSPACE: "true" # no /dev/net/tun, no capabilities: serve proxies to lgtm over the Docker network
+    volumes:
+      - tailscale-grafana:/var/lib/tailscale
+      - ./tailscale:/config:ro
+    networks: [observability]
+    labels:
+      observability.logs: "false"
+    logging: *logging
+
+volumes:
+  lgtm-data:
+  alloy-data:
+  tailscale-grafana:
+
+networks:
+  # Shared with the projects (created by scripts/up.sh): a project joins it to reach http://lgtm:4318.
+  observability:
+    name: observability
+    external: true
+  internal: {}

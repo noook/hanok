@@ -1,0 +1,107 @@
+// Grafana Alloy: Docker discovery, like Traefik's (docs/conventions.md, "Monitoring a project").
+//
+// Logs: every container's stdout/stderr goes to Loki, labelled with its compose project and service.
+//       A container opts out with the label `observability.logs=false`.
+// Metrics: containers labelled `observability.scrape=true` are scraped on `observability.port`
+//       (and `observability.path`, default /metrics), and written to Prometheus.
+// Projects that speak OTLP (Plouf) skip Alloy and send to http://lgtm:4318 directly.
+
+discovery.docker "containers" {
+  host             = "tcp://docker-proxy:2375"
+  refresh_interval = "30s"
+}
+
+// ---------------------------------------------------------------- logs
+
+discovery.relabel "logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_logs"]
+    regex         = "false"
+    action        = "drop"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service_name"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "tcp://docker-proxy:2375"
+  targets       = discovery.relabel.logs.output
+  relabel_rules = discovery.relabel.logs.rules
+  forward_to    = [loki.write.lgtm.receiver]
+}
+
+loki.write "lgtm" {
+  endpoint {
+    url = "http://lgtm:3100/loki/api/v1/push"
+  }
+}
+
+// ---------------------------------------------------------------- metrics
+
+discovery.relabel "metrics" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_scrape"]
+    regex         = "true"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_port"]
+    regex         = ".+"
+    action        = "keep"
+  }
+  // One target per container: Docker lists a container once per network and port; keep the observability network.
+  rule {
+    source_labels = ["__meta_docker_network_name"]
+    regex         = "observability"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_network_ip", "__meta_docker_container_label_observability_port"]
+    separator     = ":"
+    target_label  = "__address__"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_observability_path"]
+    regex         = "(.+)"
+    target_label  = "__metrics_path__"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "job"
+  }
+}
+
+prometheus.scrape "containers" {
+  targets         = discovery.relabel.metrics.output
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.lgtm.receiver]
+}
+
+prometheus.remote_write "lgtm" {
+  endpoint {
+    url = "http://lgtm:9090/api/v1/write"
+  }
+}

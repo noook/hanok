@@ -1,0 +1,4 @@
+.env
+*.dec.env
+/tmp/
+/build/

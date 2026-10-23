@@ -1,0 +1,8 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "docker-compose": { "fileMatch": ["^stacks/[^/]+/compose\\.yaml$", "^hosts/[^/]+/[^/]+/compose\\.yaml$"] },
+  "packageRules": [
+    { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
+  ]
+}
