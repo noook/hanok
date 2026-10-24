@@ -1,0 +1,11 @@
+[Unit]
+Description=Remove Docker images and build cache unused for a week (hanok-ci)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# Images created more than a week ago and not used by a running container (so postgres:18 is pulled again at
+# most once a week), and build cache not used for a week. Recent ones stay, so runs still build from cache.
+ExecStart=/usr/bin/docker image prune --all --force --filter until=168h
+ExecStart=/usr/bin/docker builder prune --all --force --filter until=168h

@@ -1,0 +1,34 @@
+# Proxmox firewall of the hanok-ci VM: copy to /etc/pve/firewall/<vmid>.fw on the Proxmox host and replace the
+# three <...> addresses. The same rules can be clicked in the web UI (VM > Firewall); this file is the record.
+# VM rules only apply when the Datacenter firewall is on (Datacenter > Firewall > Options).
+#
+# Why: a CI job is root in this VM (it has the Docker socket). It may reach the internet, never the LAN or the
+# tailnet, so a hostile npm package cannot reach docker-host, Proxmox or the box. Rules match top to bottom.
+
+[OPTIONS]
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+dhcp: 1
+ndp: 1
+
+[RULES]
+# DNS through the box, the only LAN address the VM may talk to.
+OUT ACCEPT -dest <GATEWAY_IP> -p udp -dport 53 # dns
+OUT ACCEPT -dest <GATEWAY_IP> -p tcp -dport 53 # dns
+# Everything private is off limits: the LAN, other private ranges, the tailnet.
+OUT DROP -dest 10.0.0.0/8
+OUT DROP -dest 172.16.0.0/12
+OUT DROP -dest 192.168.0.0/16
+OUT DROP -dest 100.64.0.0/10 # tailnet
+# No IPv6 at all. The box hands the LAN a public /64, so every LAN machine also has a global IPv6 address
+# that no private-range rule above covers, and link-local fe80:: reaches them too. CI needs only IPv4.
+# NDP stays allowed by the ndp option above; setup.sh also turns IPv6 off inside the guest.
+OUT DROP -dest 2000::/3 # global IPv6, the LAN's /64 included
+OUT DROP -dest fc00::/7 # unique local IPv6
+OUT DROP -dest fe80::/10 # link-local IPv6
+OUT DROP -dest ff00::/8 # IPv6 multicast
+# SSH in: from the Mac at home, and from the Tailscale subnet router (it rewrites the source to its LAN address,
+# so this is the way in from anywhere on the tailnet).
+IN ACCEPT -source <MAC_IP> -p tcp -dport 22 # ssh from the Mac
+IN ACCEPT -source <TAILSCALE_ROUTER_IP> -p tcp -dport 22 # ssh via tailnet

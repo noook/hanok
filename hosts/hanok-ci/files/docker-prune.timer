@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Docker prune on hanok-ci
+
+[Timer]
+# Sunday night, when no job is likely to run.
+OnCalendar=Sun 04:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
