@@ -1,0 +1,59 @@
+name: tailscale
+
+# Tailscale on the UGREEN DXP4800 Plus at the family site, as two tailnet devices:
+#
+#   gateway  family-gateway: the family site's exit node and subnet router. Kernel networking on the host, so it cannot serve
+#            anything on 443: UGOS's nginx already listens on 0.0.0.0:443.
+#   dxp      family-dxp: the NAS itself on the tailnet. Userspace networking, so its ports live in Tailscale only and
+#            serve.json can answer https://family-dxp.<tailnet>.ts.net on 443 with a real certificate, proxied to UGOS.
+#
+# Deployed from UGOS: Docker > Projet, name `tailscale`, storage Dossier partagé/docker/tailscale, this file pasted.
+# serve.json must be in that folder before the first start, or Docker creates a directory in its place.
+#
+# SITE: the site's real name (docs/network.md, "Names"), set in the project's environment or typed in when pasting;
+# the repo only says `family`. Used for the first login only: a later rename happens in the Tailscale console.
+#
+# TS_AUTHKEY_*: single-use keys, gateway tagged tag:exit-node,tag:subnet-router, dxp tagged tag:nas. Only read at
+# the first login (TS_AUTH_ONCE); the identity then lives in the state folder, and the key can be removed.
+
+services:
+  gateway:
+    image: tailscale/tailscale:v1.104.4
+    container_name: tailscale-gateway
+    restart: unless-stopped
+    network_mode: host
+    # IP forwarding is the host's: /etc/sysctl.d/99-tailscale.conf (hosts/family-dxp/sysctl.d). Without it, containerboot
+    # fails to turn it on itself, since /proc/sys is read-only in an unprivileged container.
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add: [NET_ADMIN, NET_RAW]
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_GATEWAY:-}
+      TS_AUTH_ONCE: "true"
+      TS_HOSTNAME: ${SITE:-family}-gateway
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "false"
+      # the family site's 192.168.1.0/24 as 4via6 site 77 (`tailscale debug via 77 192.168.1.0/24`): a plain 192.168.1.0/24
+      # would collide with every other 192.168.1.x network. Becomes 192.168.77.0/24 once the family site is renumbered.
+      TS_ROUTES: fd7a:115c:a1e0:b1a:0:4d:c0a8:100/120
+      TS_EXTRA_ARGS: --advertise-tags=tag:exit-node,tag:subnet-router --advertise-exit-node --accept-dns=false
+    volumes:
+      - ./gateway-state:/var/lib/tailscale
+
+  dxp:
+    image: tailscale/tailscale:v1.104.4
+    container_name: tailscale-dxp
+    restart: unless-stopped
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_DXP:-}
+      TS_AUTH_ONCE: "true"
+      TS_HOSTNAME: ${SITE:-family}-dxp
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_EXTRA_ARGS: --advertise-tags=tag:nas --accept-dns=false
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - ./dxp-state:/var/lib/tailscale
+      - ./serve.json:/config/serve.json:ro

@@ -1,0 +1,108 @@
+name: Tailscale policy
+
+# Builds the tailnet policy from tailscale/policy.hujson and my projects' fragments (tailscale/combine.py, ADR 0007),
+# then tests it (pull requests) or applies it (push to main, every hour, or by hand). The hourly run picks up a
+# project's fragment once it is merged in that project's repository.
+#
+# Secrets:
+#   TS_OAUTH_ID, TS_OAUTH_SECRET  a Tailscale OAuth client with the policy_file scope. The tailnet is `-`, the one
+#                                 the client belongs to.
+#   HANOK_APP_KEY                 the private key of the `hanok-tailnet` GitHub App (Contents: read); its Client ID is
+#                                 the variable HANOK_APP_CLIENT_ID. The repositories it is installed on are the
+#                                 projects whose fragments count: adding a project is installing the App on its
+#                                 repository, nothing to change here.
+# Forks never get secrets, so their pull requests skip the job. The build fails rather than apply without a
+# fragment, which would delete that project's rules. Nothing prints the combined policy: a public repo's logs are public.
+
+on:
+  push:
+    branches: [main]
+    paths: [tailscale/**, .github/workflows/tailscale-policy.yml]
+  pull_request:
+    branches: [main]
+    paths: [tailscale/**, .github/workflows/tailscale-policy.yml]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      allow_tag_removal:
+        description: "Allow tags of the running policy to disappear (a project removed on purpose)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: tailscale-policy
+  cancel-in-progress: false
+
+jobs:
+  policy:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # A self-hosted runner (CI_RUNNER) only when the event says the repository is private; anything else, a public
+    # repository included, runs on GitHub's runners (ADR 0004). Scheduled events carry no repository: hosted.
+    runs-on: ${{ github.event.repository.private == true && vars.CI_RUNNER || 'ubuntu-latest' }}
+    permissions:
+      contents: write # to push the formatting commit to a pull request's branch
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - uses: actions/setup-go@v7
+        if: github.event_name == 'pull_request'
+        with:
+          go-version: "1.25.6"
+          cache: false
+
+      # A push made with the workflow's token starts no new run, so the tests below run on the formatted file.
+      - name: Format the policy
+        if: github.event_name == 'pull_request'
+        run: |
+          go run github.com/tailscale/hujson/cmd/hujsonfmt@v0.0.0-20260727124030-b80ff77dac4f -w tailscale/policy.hujson
+          if ! git diff --quiet -- tailscale/policy.hujson; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "tailscale: format the policy (hujsonfmt)" -- tailscale/policy.hujson
+            git push
+          fi
+
+      - uses: actions/create-github-app-token@v3
+        id: app
+        with:
+          client-id: ${{ vars.HANOK_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HANOK_APP_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-contents: read
+
+      - name: Combine hanok's policy and the projects' fragments
+        env:
+          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+          TS_OAUTH_ID: ${{ secrets.TS_OAUTH_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          ALLOW_TAG_REMOVAL: ${{ inputs.allow_tag_removal == true && 'true' || 'false' }}
+        # Standard library only: the runner's python3, or a pinned image where there is none. (setup-python has no
+        # build for Debian 13, which hanok-ci runs.)
+        run: |
+          mkdir -p build
+          args=(tailscale/combine.py --fetch --guard-live --out build/policy.hujson)
+          if command -v python3 >/dev/null; then
+            python3 "${args[@]}"
+          else
+            docker run --rm -v "$PWD:/w" -w /w -u "$(id -u):$(id -g)" \
+              -e GITHUB_TOKEN -e GITHUB_API_URL -e TS_OAUTH_ID -e TS_OAUTH_SECRET -e ALLOW_TAG_REMOVAL \
+              python:3.13.9-slim python "${args[@]}"
+          fi
+
+      # The ETag of the last applied file, so apply can tell that the policy was changed in the admin console since.
+      - uses: actions/cache@v5
+        with:
+          path: ./version-cache.json
+          key: version-cache.json-${{ github.run_id }}
+          restore-keys: version-cache.json-
+
+      - uses: tailscale/gitops-acl-action@v1.5.2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tailnet: "-"
+          policy-file: build/policy.hujson
+          action: ${{ github.event_name == 'pull_request' && 'test' || 'apply' }}

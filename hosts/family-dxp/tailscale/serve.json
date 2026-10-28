@@ -1,0 +1,16 @@
+{
+  "TCP": {
+    "443": { "HTTPS": true },
+    "445": { "TCPForward": "host.docker.internal:445" }
+  },
+  "Web": {
+    "${TS_CERT_DOMAIN}:443": {
+      "Handlers": {
+        "/": { "Proxy": "https+insecure://host.docker.internal:9443" }
+      }
+    }
+  },
+  "AllowFunnel": {
+    "${TS_CERT_DOMAIN}:443": false
+  }
+}

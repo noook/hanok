@@ -1,0 +1,64 @@
+// The tailnet policy file: who may reach what (docs/tailscale-policy.md, docs/network.md).
+// hanok's own part. My projects bring theirs (`.hanok/tailnet.hujson` in their repository, ADR 0007):
+// tailscale/combine.py checks them and adds them, then .github/workflows/tailscale-policy.yml tests (pull requests)
+// or applies (main, hourly) the result. Edit it here, never in the admin console: the next run overwrites it.
+{
+	// Labels for machines that belong to the tailnet, not to a person. `[]`: only the tailnet's admins may give them.
+	"tagOwners": {
+		"tag:grafana":       [],
+		"tag:obsidian":      [], // the Obsidian LiveSync sidecar (ADR 0006)
+		"tag:nas":           [],
+		"tag:exit-node":     [],
+		"tag:subnet-router": [],
+	},
+
+	// Names for tests only, so they read as machines instead of addresses.
+	"hosts": {
+		"macnook-pro": "100.99.84.107",
+		"family-dsm":  "100.126.142.105",
+	},
+
+	"grants": [
+		// 1. Me: every device of mine reaches everything, and may use exit nodes.
+		{"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
+		{
+			"src": ["autogroup:member"],
+			"dst": ["autogroup:internet"],
+			"ip":  ["*"],
+		},
+
+		// 2. Family: their NAS, and the internet through their exit node. A shared user only ever reaches the machines
+		// shared with them, so these open nothing else.
+		{
+			"src": ["autogroup:shared"],
+			"dst": ["family-dsm"],
+			"ip":  ["tcp:5000", "tcp:5001", "tcp:6690", "tcp:445", "tcp:8443"],
+		},
+		{
+			"src": ["autogroup:shared"],
+			"dst": ["tag:nas"],
+			"ip":  ["tcp:443", "tcp:445"],
+		},
+		{
+			"src": ["autogroup:shared"],
+			"dst": ["autogroup:internet"],
+			"ip":  ["*"],
+		},
+	],
+
+	"ssh": [
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+
+	"tests": [
+		{
+			"src":    "macnook-pro",
+			"accept": ["1.1.1.1:443", "family-dsm:5000", "tag:obsidian:443"],
+		},
+	],
+}
