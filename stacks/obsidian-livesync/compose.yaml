@@ -1,0 +1,85 @@
+name: obsidian-livesync
+
+# My Obsidian vault's sync server (docs/adr/0006). Self-hosted LiveSync on my devices replicates the vault into
+# CouchDB, end-to-end encrypted: CouchDB only ever stores encrypted chunks.
+#
+#   couchdb             the database. No host port: it is reached through the sidecar, or `docker exec` for admin work.
+#   init                one-shot, on every start: CouchDB settings LiveSync needs, the vault database, and its two
+#                       users (couchdb/init.sh). Idempotent.
+#   tailscale-obsidian  CouchDB on the tailnet as https://obsidian.<tailnet>.ts.net (profile `tailnet`).
+#
+# Start it with scripts/up.sh obsidian-livesync --profile tailnet, never with a bare `docker compose up`.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  couchdb:
+    image: couchdb:3.5.3
+    restart: unless-stopped
+    environment:
+      COUCHDB_USER: ${COUCHDB_ADMIN_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_ADMIN_PASSWORD:?COUCHDB_ADMIN_PASSWORD is not set}
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+      # The entrypoint writes the admin here (docker.ini), and settings changed through the API land here too.
+      # init.sh sets the ones that matter on every start, so this volume holds nothing that is not in the repo.
+      - couchdb-etc:/opt/couchdb/etc/local.d
+    healthcheck:
+      # _up needs a login once init has set require_valid_user; $$ keeps the variables for the container's shell.
+      test: ["CMD-SHELL", "curl -fsS -u \"$${COUCHDB_USER}:$${COUCHDB_PASSWORD}\" http://127.0.0.1:5984/_up >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    logging: *logging
+
+  init:
+    image: curlimages/curl:8.23.0
+    restart: "no"
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    environment:
+      COUCHDB_URL: http://couchdb:5984
+      COUCHDB_ADMIN_USER: ${COUCHDB_ADMIN_USER:-admin}
+      COUCHDB_ADMIN_PASSWORD: ${COUCHDB_ADMIN_PASSWORD:?COUCHDB_ADMIN_PASSWORD is not set}
+      VAULT_DATABASE: ${VAULT_DATABASE:-vault}
+      DEVICES_USER: ${DEVICES_USER:-devices}
+      DEVICES_PASSWORD: ${DEVICES_PASSWORD:?DEVICES_PASSWORD is not set}
+      AGENTS_USER: ${AGENTS_USER:-agents}
+      AGENTS_PASSWORD: ${AGENTS_PASSWORD:?AGENTS_PASSWORD is not set}
+    volumes:
+      - ./couchdb/init.sh:/init.sh:ro
+    entrypoint: ["sh", "/init.sh"]
+    labels:
+      observability.logs: "false" # it prints nothing secret, but nothing worth keeping either
+    logging: *logging
+
+  tailscale-obsidian:
+    image: tailscale/tailscale:v1.104.4
+    profiles: [tailnet]
+    restart: unless-stopped
+    hostname: obsidian
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_OBSIDIAN:-}
+      TS_AUTH_ONCE: "true"
+      TS_HOSTNAME: obsidian
+      TS_EXTRA_ARGS: --advertise-tags=tag:obsidian --accept-dns=false
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/obsidian.json
+      TS_USERSPACE: "true" # no /dev/net/tun, no capabilities: serve proxies to couchdb over the Docker network
+    volumes:
+      - tailscale-obsidian:/var/lib/tailscale
+      - ./tailscale:/config:ro
+    labels:
+      observability.logs: "false"
+    logging: *logging
+
+volumes:
+  # New names on purpose: the stack that ran from /opt/stacks used couchdb_data and couchdb_config. They are left
+  # untouched as the backup of the unencrypted vault until the cutover is checked (docs/runbooks/obsidian-livesync.md).
+  couchdb-data:
+  couchdb-etc:
+  tailscale-obsidian:
