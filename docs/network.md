@@ -27,11 +27,11 @@ A site's infrastructure on the tailnet, its gateway and its NAS, is named `<site
 | Site | Router | LAN now | LAN target | Gateway on the tailnet |
 |---|---|---|---|---|
 | `home` | Bouygues Bbox Miami | `192.168.1.0/24` | `192.168.93.0/24` | `ts-gateway`, to be renamed `home-gateway` |
-| `family` | ISP box | `192.168.1.0/24`, as 4via6 site 77 | `192.168.77.0/24` | `family-gateway` |
+| `family` | ISP box | `192.168.77.0/24` | done | `family-gateway` |
 
 - **One range per site, numbered after its département** (93, 77). French ISP boxes default to `192.168.1.x` and `192.168.0.x`, so those are never used: wherever I am, my sites never collide with the network I'm on. Inside a site: `.1`–`.49` fixed infrastructure, `.50`–`.199` DHCP, `.254` the router.
 - **Other people's networks are not mine to number.** A machine of mine on a friend's network joins as a single tagged device and advertises nothing.
-- **4via6** is the stopgap for a site that still overlaps: the gateway advertises its `192.168.1.0/24` under a site number, and a device there without Tailscale is reached by name, `http://192-168-1-23-via-77`, or by its IPv6 address (`tailscale debug via 77 192.168.1.23/32`). The box's admin page refuses any name other than its own, so it only opens at its IPv6 address: `http://[fd7a:115c:a1e0:b1a:0:4d:c0a8:1fe]/`.
+- **4via6** is the stopgap for a site that still overlaps: the gateway advertises its `192.168.1.0/24` under a site number, and a device there without Tailscale is reached by name, `http://192-168-1-23-via-77`, or by its IPv6 address (`tailscale debug via 77 192.168.1.23/32`). The family site used it (site 77) until it was renumbered; none does now.
 
 ## Devices
 
@@ -45,7 +45,7 @@ Infrastructure is tagged: it belongs to the tailnet, not to me, never expires, a
 | `obsidian` | home | a container on `docker-host` | `tag:obsidian` | the Obsidian vault's CouchDB sidecar (ADR 0006) |
 | `hermes` | home | an LXC on `tartiflette` | untagged (to be `tag:agent`) | the Hermes agent |
 | `family-dsm` | family | the Synology | untagged (to be `tag:nas`, `tag:exit-node`) | my family's NAS and exit node, shared with them; replaced by the DXP over time |
-| `family-gateway` | family | a container on the DXP, kernel networking | `tag:exit-node`, `tag:subnet-router` | exit node, 4via6 router for the family site's LAN (`hosts/family-dxp/tailscale`) |
+| `family-gateway` | family | a container on the DXP, kernel networking | `tag:exit-node`, `tag:subnet-router` | exit node, subnet router for the family site's LAN, `192.168.77.0/24` (`hosts/family-dxp/tailscale`) |
 | `family-dxp` | family | a container on the DXP, userspace | `tag:nas` | the DXP's web UI on `https://family-dxp.<tailnet>.ts.net`, and SMB |
 
 A project's own devices are listed in its repository, next to its rules (ADR 0007).

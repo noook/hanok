@@ -33,9 +33,7 @@ services:
       TS_HOSTNAME: ${SITE:-family}-gateway
       TS_STATE_DIR: /var/lib/tailscale
       TS_USERSPACE: "false"
-      # the family site's 192.168.1.0/24 as 4via6 site 77 (`tailscale debug via 77 192.168.1.0/24`): a plain 192.168.1.0/24
-      # would collide with every other 192.168.1.x network. Becomes 192.168.77.0/24 once the family site is renumbered.
-      TS_ROUTES: fd7a:115c:a1e0:b1a:0:4d:c0a8:100/120
+      TS_ROUTES: 192.168.77.0/24
       TS_EXTRA_ARGS: --advertise-tags=tag:exit-node,tag:subnet-router --advertise-exit-node --accept-dns=false
     volumes:
       - ./gateway-state:/var/lib/tailscale

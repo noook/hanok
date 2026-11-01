@@ -18,6 +18,15 @@
 		"family-dsm":  "100.126.142.105",
 	},
 
+	// A site's range is approved when its gateway advertises it; any exit node is, once tagged.
+	"autoApprovers": {
+		"routes": {
+			"192.168.77.0/24": ["tag:subnet-router"], // family
+			"192.168.93.0/24": ["tag:subnet-router"], // home
+		},
+		"exitNode": ["tag:exit-node"],
+	},
+
 	"grants": [
 		// 1. Me: every device of mine reaches everything, and may use exit nodes.
 		{"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
