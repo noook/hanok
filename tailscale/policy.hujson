@@ -12,7 +12,7 @@
 		"tag:subnet-router": [],
 		// A service my family may open, on 443 (ADR 0008). Given next to its own tag, e.g. a project's sidecar
 		// (tag:family-media-seerr,tag:family): the project decides which of its services are for the family.
-		"tag:family":        [],
+		"tag:family": [],
 	},
 
 	// Names for tests only, so they read as machines instead of addresses.
@@ -32,7 +32,11 @@
 
 	"grants": [
 		// 1. Me (the owner, and any admin): every device of mine reaches everything, and may use any exit node.
-		{"src": ["autogroup:owner", "autogroup:admin"], "dst": ["*"], "ip": ["*"]},
+		{
+			"src": ["autogroup:owner", "autogroup:admin"],
+			"dst": ["*"],
+			"ip":  ["*"],
+		},
 		{
 			"src": ["autogroup:owner", "autogroup:admin"],
 			"dst": ["autogroup:internet"],
