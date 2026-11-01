@@ -9,13 +9,13 @@ My family used their own Tailscale accounts, and I shared them machines one by o
 - **Services are tagged by household**: `tag:family`, `tag:home`, on 443. A project puts the tag next to its own on the services meant for a household (a sidecar advertises `tag:<project>-<service>,tag:family`), so the project chooses, hanok keeps the rule.
 - **What each household reaches:**
 
-  | | its NAS, Synology, exit node | `tag:family` services | `tag:home` services |
-  |---|---|---|---|
-  | `group:family` | yes | yes | no |
-  | `group:home` | no | yes | yes |
+  | | the family's NAS (`tag:nas`) | Synology, exit node | `tag:family` services | `tag:home` services |
+  |---|---|---|---|---|
+  | `group:family` | yes | yes | yes | no |
+  | `group:home` | yes | no | yes | yes |
   | me (`autogroup:owner`, `autogroup:admin`) | everything | | |
 
-  Files and exit nodes stay with their household; the family's services are open to my household as guests.
+  The family's services and NAS are open to my household as guests; on the NAS, its own accounts decide who opens what (one is created only when someone needs it). The Synology and the exit node stay the family's.
 - **No email in this public repo.** The policy names groups; their members come from the `TAILNET_GROUPS` secret (JSON), which `combine.py` adds at build time and never prints. It refuses a policy whose groups and secret don't match, and a `groups` section in the file.
 
 **Rejected.**

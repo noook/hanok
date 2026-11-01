@@ -30,7 +30,7 @@ the tailnet
 The rules in hanok's part:
 
 1. My devices (`autogroup:owner`, `autogroup:admin`) reach everything, and the internet through any exit node.
-2. People are invited as members and belong to a household, `group:family` or `group:home` (members from the `TAILNET_GROUPS` secret, never in this repo). The family reaches its NAS and exit node; both households reach the services tagged `tag:family`; only mine reaches `tag:home` (ADR 0008). Until the migration is done, the old shares (`autogroup:shared`) keep their grants.
+2. People are invited as members and belong to a household, `group:family` or `group:home` (members from the `TAILNET_GROUPS` secret, never in this repo). Both households reach the family's NAS (its own accounts decide who opens what) and the services tagged `tag:family`; the exit node is the family's; only mine reaches `tag:home` (ADR 0008). Until the migration is done, the old shares (`autogroup:shared`) keep their grants.
 3. Tagged machines get nothing unless a grant names them: a service sidecar (`tag:grafana`, `tag:obsidian`) answers, it never opens connections.
 
 ## A service of hanok

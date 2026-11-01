@@ -48,9 +48,10 @@
 		// (mine). Who is in which comes from the TAILNET_GROUPS secret, added by combine.py: no email in this file. A member
 		// in no group reaches nothing.
 
-		// 2. The family household: their NAS, and the internet through a tagged exit node (theirs).
+		// 2. The family's NAS: both households reach it on the network; its own accounts decide who opens what
+		// (an account is created only for whoever needs one). The Synology and the exit node stay the family's.
 		{
-			"src": ["group:family"],
+			"src": ["group:family", "group:home"],
 			"dst": ["tag:nas"],
 			"ip":  ["tcp:443", "tcp:445"],
 		},
@@ -119,14 +120,8 @@
 		},
 		{
 			"src":    "group:home",
-			"accept": ["tag:family:443", "tag:home:443"],
-			"deny": [
-				"tag:nas:445",
-				"family-dsm:5000",
-				"tag:grafana:443",
-				"tag:obsidian:443",
-				"macnook-pro:22",
-			],
+			"accept": ["tag:family:443", "tag:home:443", "tag:nas:445", "tag:nas:443"],
+			"deny":   ["family-dsm:5000", "tag:grafana:443", "tag:obsidian:443", "macnook-pro:22"],
 		},
 	],
 }
