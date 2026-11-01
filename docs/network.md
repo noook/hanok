@@ -59,4 +59,4 @@ The DXP needs two devices because UGOS's own web server holds port 443 on every 
 - **Personal devices accept routes** once every advertised range is unique (both sites renumbered); until then, only for a debugging session.
 - **Reach a tailnet device by its short name** (`docker-host`), or `https://<name>.<tailnet>.ts.net` for a served one. Home names like `docker-host.lan` only work at home.
 - **Exit nodes**: `ts-gateway` is my home IP when I'm away; the family gateway is my family's home IP, which they use abroad. A shared exit node needs "Allow use as an exit node" on its share.
-- **My family** use their own Tailscale accounts: I share them their NAS (and its exit node), nothing else. They are `autogroup:shared` in the policy.
+- **My family** are invited into the tailnet as members (ADR 0008): they reach their NAS, the services tagged `tag:family`, and the internet through their exit node. Being moved off the old shares: `docs/runbooks/family-members.md`.

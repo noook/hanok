@@ -10,6 +10,9 @@
 		"tag:nas":           [],
 		"tag:exit-node":     [],
 		"tag:subnet-router": [],
+		// A service my family may open, on 443 (ADR 0008). Given next to its own tag, e.g. a project's sidecar
+		// (tag:family-media-seerr,tag:family): the project decides which of its services are for the family.
+		"tag:family":        [],
 	},
 
 	// Names for tests only, so they read as machines instead of addresses.
@@ -28,16 +31,40 @@
 	},
 
 	"grants": [
-		// 1. Me: every device of mine reaches everything, and may use exit nodes.
-		{"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
+		// 1. Me (the owner, and any admin): every device of mine reaches everything, and may use any exit node.
+		{"src": ["autogroup:owner", "autogroup:admin"], "dst": ["*"], "ip": ["*"]},
 		{
-			"src": ["autogroup:member"],
+			"src": ["autogroup:owner", "autogroup:admin"],
 			"dst": ["autogroup:internet"],
 			"ip":  ["*"],
 		},
 
-		// 2. Family: their NAS, and the internet through their exit node. A shared user only ever reaches the machines
-		// shared with them, so these open nothing else.
+		// 2. Family, invited into the tailnet as members (ADR 0008): their NAS, the services tagged tag:family, and the
+		// internet through a tagged exit node. Nothing else: no other machine, no LAN route, no SSH to my servers.
+		{
+			"src": ["autogroup:member"],
+			"dst": ["tag:nas"],
+			"ip":  ["tcp:443", "tcp:445"],
+		},
+		{
+			"src": ["autogroup:member"],
+			"dst": ["family-dsm"],
+			"ip":  ["tcp:5000", "tcp:5001", "tcp:6690", "tcp:445", "tcp:8443"],
+		},
+		{
+			"src": ["autogroup:member"],
+			"dst": ["tag:family"],
+			"ip":  ["tcp:443"],
+		},
+		{
+			"src": ["autogroup:member"],
+			"dst": ["autogroup:internet"],
+			"via": ["tag:exit-node"],
+			"ip":  ["*"],
+		},
+
+		// 3. Family, the old way: shared machines (autogroup:shared). Kept until every family member is invited and the
+		// shares are removed (docs/runbooks/family-members.md), then deleted.
 		{
 			"src": ["autogroup:shared"],
 			"dst": ["family-dsm"],
