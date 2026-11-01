@@ -1,0 +1,61 @@
+name: ntfy
+
+# Push notifications for my projects and my family's apps: https://ntfy.nook.sh. Phones subscribe with the ntfy app.
+# Public through the Cloudflare tunnel, on purpose: phones outside the tailnet (the family's iPhones) must reach it.
+# What keeps it safe: no anonymous access at all (deny-all), every user, topic permission and token declared in the
+# secrets, nothing created by hand. Topic and user names live in the secrets only, never in this file.
+#
+# iPhones: iOS only wakes the app for a self-hosted server through ntfy.sh's push relay (upstream-base-url). The
+# relay only ever sees a hash of the topic URL, never the message.
+#
+# Start it with scripts/up.sh ntfy, never with a bare `docker compose up`. Runbook: docs/runbooks/ntfy.md.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  ntfy:
+    image: binwiederhier/ntfy:v2.36.0
+    restart: unless-stopped
+    command: serve
+    environment:
+      NTFY_BASE_URL: https://ntfy.nook.sh
+      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
+      NTFY_BEHIND_PROXY: "true"
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_CACHE_DURATION: 72h
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_ENABLE_LOGIN: "true"
+      NTFY_ENABLE_SIGNUP: "false"
+      NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
+      # Declared users, permissions and tokens (ntfy docs, "users via the config"): applied at every start, and
+      # anything removed here is removed from the database. Formats in .env.example.
+      NTFY_AUTH_USERS: ${NTFY_AUTH_USERS:?NTFY_AUTH_USERS is not set}
+      NTFY_AUTH_ACCESS: ${NTFY_AUTH_ACCESS:-}
+      NTFY_AUTH_TOKENS: ${NTFY_AUTH_TOKENS:-}
+    volumes:
+      - ntfy-data:/var/lib/ntfy
+    networks: [proxy]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 -O - http://127.0.0.1:80/v1/health | grep -q '\"healthy\":true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.ntfy.rule: Host(`ntfy.nook.sh`)
+      traefik.http.routers.ntfy.entrypoints: web
+      traefik.http.routers.ntfy.service: ntfy
+      traefik.http.services.ntfy.loadbalancer.server.port: "80"
+    logging: *logging
+
+networks:
+  proxy:
+    external: true
+
+volumes:
+  ntfy-data:
