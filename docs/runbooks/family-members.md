@@ -1,38 +1,43 @@
-# Family members in the tailnet
+# People in the tailnet
 
-Moving the family from shared machines to invited members (ADR 0008), then adding the next ones. Every step is in the Tailscale admin console or the Tailscale app; nothing to deploy.
+Inviting people into the tailnet by household (ADR 0008), and moving the family off the old shares. Steps in the Tailscale admin console, the Tailscale app, and one GitHub secret.
 
-## 0. Before
+## The secret
 
-This change is merged and applied (Actions > tailscale-policy, last run green). The old `autogroup:shared` grants are still there, so nothing breaks for anyone while you go.
+`TAILNET_GROUPS` (repository secret of hanok) lists who is in which household, one JSON object:
 
-## 1. Tag the services meant for them
-
-Admin console > Machines > the machine > ⋯ > Edit ACL tags > add `tag:family`, keeping its own tag. For family-media: `<site>-jellyfin` and `<site>-seerr` (not `<site>-admin`). A project's compose file advertises the same pair, so a re-registered sidecar gets it back.
-
-Check: Access controls > Preview rules > pick that machine: "autogroup:member, tcp:443" is listed.
-
-## 2. Invite a person
-
-1. Settings > Users > Invite users > their email, role **Member**. They get an email.
-2. On their phone: install Tailscale, open the invite link, sign in with the identity the invite was sent to. If they already use Tailscale with their own account, they add this one and switch (the app keeps both).
-3. iPhone: Tailscale app > Settings > VPN On Demand on, so it stays connected. One VPN at a time on iOS: another VPN app turns Tailscale off.
-4. Check on their phone, Tailscale on: open `https://<site>-seerr.<tailnet>.ts.net`. A page that never loads means step 1 or the policy run; a certificate warning means they typed the short name instead of the full one.
-
-## 3. Add a test for the family (first person only)
-
-In `tailscale/policy.hujson`: add their phone under `hosts` (`"family-phone": "100.x.y.z"`, from the Machines page), and a test:
-
-```jsonc
-{"src": "family-phone", "accept": ["tag:nas:443", "tag:family:443"], "deny": ["macnook-pro:22", "tag:grafana:443", "tag:obsidian:443"]},
+```json
+{"group:family": ["dad@example.com"], "group:home": ["partner@example.com"]}
 ```
 
-Pull request; the workflow tests it against the live tailnet.
+Every group the policy uses must be there, even empty (`[]`). Set or update it from the Mac:
 
-## 4. Remove the old shares
+```sh
+gh secret set TAILNET_GROUPS --repo noook/hanok < groups.json   # then delete groups.json
+```
 
-Once everyone is invited: Machines > `family-dsm`, `family-dxp`, `family-gateway` > ⋯ > Share > remove each person. Then a pull request deleting group 3 (`autogroup:shared`) in `tailscale/policy.hujson`, and the `autogroup:shared` sentence in `docs/tailscale-policy.md`.
+Then Actions > tailscale-policy > Run workflow (or wait for the hourly run). The log only says `N groups, M members`.
 
-## Using their exit node
+Before merging the change that introduced groups: set the secret first, or the pull request's test and every apply stop at `TAILNET_GROUPS is not set` (nothing breaks; the tailnet keeps its policy).
 
-Members may use a node tagged `tag:exit-node`: in the app, Exit node > `family-gateway`. Today it is the only tagged one.
+## 1. Tag the services
+
+Admin console > Machines > the machine > ⋯ > Edit ACL tags > add the household tag, keeping its own tag. family-media: `tag:family` on `<site>-jellyfin` and `<site>-seerr` (not `<site>-admin`). A project's compose file advertises the same pair, so a re-registered sidecar gets it back.
+
+## 2. Add a person
+
+1. Add their email to the right household in `TAILNET_GROUPS` (above) and run the workflow.
+2. Settings > Users > Invite users > that email, role **Member**.
+3. On their phone: install Tailscale, open the invite link, sign in with that identity. Someone who already uses Tailscale with their own account adds this one and switches (the app keeps both).
+4. iPhone: Tailscale app > Settings > VPN On Demand on. One VPN at a time on iOS: another VPN app turns Tailscale off.
+5. Check on their phone, Tailscale on: `https://<site>-seerr.<tailnet>.ts.net` opens. Never loads: the tag (step 1), their group, or the last workflow run. Certificate warning: they typed the short name.
+
+Group tests (`group:family`, `group:home` in `tests`) run on every pull request against the live tailnet.
+
+## 3. Remove the old shares
+
+Once the family is invited: Machines > `family-dsm`, `family-dxp`, `family-gateway` > ⋯ > Share > remove each person. Then a pull request deleting group 4 (`autogroup:shared`) in `tailscale/policy.hujson`, and the `autogroup:shared` sentence in `docs/tailscale-policy.md`.
+
+## Exit nodes
+
+`group:family` may use a node tagged `tag:exit-node`: in the app, Exit node > `family-gateway`. Today it is the only tagged one.
