@@ -11,7 +11,8 @@ Phones, Cloudflare Access and the apps' own servers must reach it without Tailsc
 1. On the Mac: `openssl rand -base64 32`, then `sops stacks/pocket-id/secrets.enc.env` and add `POCKET_ID_ENCRYPTION_KEY=<that value>`. Back the value up in the password manager: losing it loses the signing keys.
 2. `scripts/up.sh pocket-id`.
 3. Cloudflare: nothing to add. `*.nook.sh` already goes to Traefik. Check `https://id.nook.sh` loads.
-4. Protect the admin pages (Cloudflare dashboard > Security > WAF > Custom rules): block when `http.host eq "id.nook.sh" and starts_with(http.request.uri.path, "/settings/admin") and ip.src ne <your home IP>`. Remove or loosen it when you travel.
+4. No IP restriction on the admin pages, on purpose: I want to reach them from anywhere, and the admin passkey is the gate (no password, signups off). If Security Events ever shows bots on `/settings/admin`, add a Managed Challenge custom rule on that path (free plan).
+5. Create the admin account right away (next section): `/setup` is open to anyone until the first account exists.
 
 ## First admin
 
