@@ -1,0 +1,54 @@
+name: pocket-id
+
+# The identity provider of the homelab (login with a passkey, OpenID Connect for the apps). Front door: https://id.nook.sh.
+# The hostname is permanent: passkeys are bound to the domain, so changing it makes every enrolled passkey useless.
+# Public through the Cloudflare tunnel, on purpose: phones and Cloudflare Access must reach it without Tailscale.
+# What keeps it safe: passkey-only login, signups off, users created only by the admin, every app (client) limited to a group.
+#
+# Start it with scripts/up.sh pocket-id, never with a bare `docker compose up`. Runbook: docs/runbooks/pocket-id.md.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+services:
+  pocket-id:
+    image: ghcr.io/pocket-id/pocket-id:v2.19.1
+    restart: unless-stopped
+    environment:
+      APP_URL: https://id.nook.sh
+      # Encrypts the signing keys in the database. Losing it loses the keys: back it up outside the server.
+      ENCRYPTION_KEY: ${POCKET_ID_ENCRYPTION_KEY:?POCKET_ID_ENCRYPTION_KEY is not set}
+      # Cloudflare sets this header: the audit log then shows the visitor, not the tunnel.
+      TRUST_PROXY: "true"
+      TRUSTED_PLATFORM: CF-Connecting-IP
+      # Only the admin creates users (Administration > Users). No signup page, no email self-recovery.
+      ALLOW_USER_SIGNUPS: disabled
+      EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED: "false"
+      # No http:// callbacks: every app uses https (or its own app scheme).
+      ALLOW_INSECURE_CALLBACK_URLS: "false"
+      ANALYTICS_DISABLED: "true"
+    volumes:
+      - pocket-id-data:/app/data
+    networks: [proxy]
+    healthcheck:
+      test: ["CMD", "/app/pocket-id", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.pocket-id.rule: Host(`id.nook.sh`)
+      traefik.http.routers.pocket-id.entrypoints: web
+      traefik.http.routers.pocket-id.service: pocket-id
+      traefik.http.services.pocket-id.loadbalancer.server.port: "1411"
+    logging: *logging
+
+networks:
+  proxy:
+    external: true
+
+volumes:
+  pocket-id-data:
