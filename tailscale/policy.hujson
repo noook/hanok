@@ -10,6 +10,10 @@
 		"tag:nas":           [],
 		"tag:exit-node":     [],
 		"tag:subnet-router": [],
+		// A household's services, on 443 (ADR 0008). Given next to a service's own tag, e.g. a project's sidecar
+		// (tag:family-media-seerr,tag:family): the project decides which of its services a household gets.
+		"tag:family": [], // the family site's household
+		"tag:home":   [], // my household
 	},
 
 	// Names for tests only, so they read as machines instead of addresses.
@@ -18,17 +22,66 @@
 		"family-dsm":  "100.126.142.105",
 	},
 
+	// A site's range is approved when its gateway advertises it; any exit node is, once tagged.
+	"autoApprovers": {
+		"routes": {
+			"192.168.77.0/24": ["tag:subnet-router"], // family
+			"192.168.93.0/24": ["tag:subnet-router"], // home
+		},
+		"exitNode": ["tag:exit-node"],
+	},
+
 	"grants": [
-		// 1. Me: every device of mine reaches everything, and may use exit nodes.
-		{"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
+		// 1. Me (the owner, and any admin): every device of mine reaches everything, and may use any exit node.
 		{
-			"src": ["autogroup:member"],
+			"src": ["autogroup:owner", "autogroup:admin"],
+			"dst": ["*"],
+			"ip":  ["*"],
+		},
+		{
+			"src": ["autogroup:owner", "autogroup:admin"],
 			"dst": ["autogroup:internet"],
 			"ip":  ["*"],
 		},
 
-		// 2. Family: their NAS, and the internet through their exit node. A shared user only ever reaches the machines
-		// shared with them, so these open nothing else.
+		// People invited into the tailnet belong to households (ADR 0008): group:family (the family site) and group:home
+		// (mine). Who is in which comes from the TAILNET_GROUPS secret, added by combine.py: no email in this file. A member
+		// in no group reaches nothing.
+
+		// 2. The family's NAS: both households reach it on the network; its own accounts decide who opens what
+		// (an account is created only for whoever needs one). The Synology and the exit node stay the family's.
+		{
+			"src": ["group:family", "group:home"],
+			"dst": ["tag:nas"],
+			"ip":  ["tcp:443", "tcp:445"],
+		},
+		{
+			"src": ["group:family"],
+			"dst": ["family-dsm"],
+			"ip":  ["tcp:5000", "tcp:5001", "tcp:6690", "tcp:445", "tcp:8443"],
+		},
+		{
+			"src": ["group:family"],
+			"dst": ["autogroup:internet"],
+			"via": ["tag:exit-node"],
+			"ip":  ["*"],
+		},
+
+		// 3. Household services. The family's (media, requests) are open to my household too; mine only to mine.
+		// Files and exit nodes stay with their own household.
+		{
+			"src": ["group:family", "group:home"],
+			"dst": ["tag:family"],
+			"ip":  ["tcp:443"],
+		},
+		{
+			"src": ["group:home"],
+			"dst": ["tag:home"],
+			"ip":  ["tcp:443"],
+		},
+
+		// 4. Family, the old way: shared machines (autogroup:shared). Kept until every family member is invited and the
+		// shares are removed (docs/runbooks/family-members.md), then deleted.
 		{
 			"src": ["autogroup:shared"],
 			"dst": ["family-dsm"],
@@ -58,7 +111,17 @@
 	"tests": [
 		{
 			"src":    "macnook-pro",
-			"accept": ["1.1.1.1:443", "family-dsm:5000", "tag:obsidian:443"],
+			"accept": ["1.1.1.1:443", "family-dsm:5000", "tag:obsidian:443", "tag:family:443"],
+		},
+		{
+			"src":    "group:family",
+			"accept": ["tag:nas:445", "family-dsm:5000", "tag:family:443"],
+			"deny":   ["tag:home:443", "tag:grafana:443", "tag:obsidian:443", "macnook-pro:22"],
+		},
+		{
+			"src":    "group:home",
+			"accept": ["tag:family:443", "tag:home:443", "tag:nas:445", "tag:nas:443"],
+			"deny":   ["family-dsm:5000", "tag:grafana:443", "tag:obsidian:443", "macnook-pro:22"],
 		},
 	],
 }

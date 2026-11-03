@@ -38,6 +38,7 @@ renovate.json                    image updates as pull requests
 | Stack | What | Reached |
 |---|---|---|
 | `observability` | Grafana, Prometheus, Loki, Tempo, an OpenTelemetry collector (one container for now), Alloy | tailnet: `grafana.<tailnet>.ts.net` |
+| `ntfy` | push notifications for my projects and my family's apps | public: `ntfy.nook.sh`, no anonymous access |
 | `obsidian-livesync` | CouchDB for my Obsidian vault (Self-hosted LiveSync, end-to-end encrypted), shared with my agents ([ADR 0006](docs/adr/0006-obsidian-vault-on-the-tailnet-encrypted-shared-with-agents.md), [runbook](docs/runbooks/obsidian-livesync.md)) | tailnet: `obsidian.<tailnet>.ts.net` |
 | `traefik`, `cloudflared`, `umami` | still in `/opt/stacks` on docker-host, to be imported ([docs/runbooks/import-a-stack.md](docs/runbooks/import-a-stack.md)) | |
 

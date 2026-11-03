@@ -4,6 +4,8 @@
 # `sops --encrypt /tmp/x.env > stacks/<stack>/secrets.enc.env`. Every dotenv file uses the same recipients.
 creation_rules:
   - path_regex: \.env$
-    age: >-
-      age1392prarwhkgv6szfz8nryr3x6pltqrfd4kr2cyczt0sp0saua4vsasj9da,
-      age13a09uaukqdjvft69xl3ankpt4lgdgv7fl2l69ttrsfz76gzunqhq7d78uz
+    key_groups:
+      - age:
+        - age1392prarwhkgv6szfz8nryr3x6pltqrfd4kr2cyczt0sp0saua4vsasj9da # macnook-pro
+        - age13a09uaukqdjvft69xl3ankpt4lgdgv7fl2l69ttrsfz76gzunqhq7d78uz # docker-host
+        - age1r95y653jpasthq8lqz99m356sr2tr6tdt0km8s6malnsf5ttnd3s0tghk0 # work
