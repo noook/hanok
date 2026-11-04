@@ -30,7 +30,7 @@ the tailnet
 The rules in hanok's part:
 
 1. My devices (`autogroup:owner`, `autogroup:admin`) reach everything, and the internet through any exit node.
-2. People are invited as members and belong to a household, `group:family` or `group:home` (members from the `TAILNET_GROUPS` secret, never in this repo). Both households reach the family's NAS (its own accounts decide who opens what) and the services tagged `tag:family`; the exit node is the family's; only mine reaches `tag:home` (ADR 0008). Until the migration is done, the old shares (`autogroup:shared`) keep their grants.
+2. People are invited as members and belong to a household, `group:family` or `group:home` (members from the `TAILNET_GROUPS` secret, never in this repo). Both households reach the family's NAS (its own accounts decide who opens what) and the services tagged `tag:family`; the exit node is the family's; only mine reaches `tag:home` (ADR 0008).
 3. Tagged machines get nothing unless a grant names them: a service sidecar (`tag:grafana`, `tag:obsidian`) answers, it never opens connections.
 
 ## A service of hanok
@@ -71,3 +71,19 @@ The project joins by installing the `hanok-tailnet` GitHub App on its repository
 - **Machines** page: the new machine shows its tag instead of my email.
 - **Access controls > Preview rules**: pick a machine and see what it can reach.
 - From the phone, with Tailscale on: open `https://grafana.<tailnet>.ts.net`.
+
+## Households: the `TAILNET_GROUPS` secret
+
+Who is in `group:family` and `group:home` is not in this repo (it would publish emails). It lives in **one GitHub repository secret of hanok, `TAILNET_GROUPS`**, read by `tailscale/combine.py` on every run of the policy workflow and never printed (the log says `combine: N groups, M members`).
+
+| | |
+|---|---|
+| Where | hanok > Settings > Secrets and variables > Actions > `TAILNET_GROUPS` |
+| Format | one JSON object, every group the policy uses, even empty: `{"group:family": ["dad@example.com"], "group:home": ["partner@example.com"]}` |
+| The readable copy | Bitwarden, secure note **"hanok TAILNET_GROUPS"**: GitHub never shows a secret again, so this note is the source of truth |
+| Change it | edit the note, then from the Mac: `pbpaste \| gh secret set TAILNET_GROUPS --repo noook/hanok` (with the JSON copied), then Actions > Tailscale policy > Run workflow |
+| Check | the run is green and says the expected count; Access controls > Preview rules > pick the person: their household's machines are listed |
+| If it is missing or wrong | the run stops before applying (`TAILNET_GROUPS is not set`, `... has [...], the policy uses [...]`, `not valid JSON`); the tailnet keeps the last good policy |
+
+The emails are the identities people sign in to Tailscale with (Apple, Google...). Me: not listed, the owner reaches everything. A new household is a new group in `tailscale/policy.hujson` plus its key in the secret, in the same change. Adding a person, step by step: `docs/runbooks/family-members.md`.
+

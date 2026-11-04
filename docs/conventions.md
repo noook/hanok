@@ -40,6 +40,7 @@ A project that needs machines of its own on the tailnet brings `.hanok/tailnet.h
 - `stacks/<stack>/secrets.enc.env`, encrypted with SOPS for the age keys in `.sops.yaml` (my Mac and docker-host). Edit with `sops stacks/<stack>/secrets.enc.env`.
 - Every key a stack reads is listed, without values, in `stacks/<stack>/.env.example`.
 - Plain `.env` files are for local tests only and are gitignored.
+- GitHub Actions secrets of hanok, for the tailnet policy workflow: `HANOK_APP_KEY` (the hanok-tailnet App), `TS_OAUTH_ID` / `TS_OAUTH_SECRET` (applies the policy), `TAILNET_GROUPS` (who is in each household, `docs/tailscale-policy.md`). Their readable copies are in Bitwarden.
 - The repo is meant to become public: no plain secret, no personal email, no tailnet name in committed files (they come from secrets or `${TS_CERT_DOMAIN}`).
 
 ## Using the CI runner

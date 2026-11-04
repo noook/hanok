@@ -79,24 +79,6 @@
 			"dst": ["tag:home"],
 			"ip":  ["tcp:443"],
 		},
-
-		// 4. Family, the old way: shared machines (autogroup:shared). Kept until every family member is invited and the
-		// shares are removed (docs/runbooks/family-members.md), then deleted.
-		{
-			"src": ["autogroup:shared"],
-			"dst": ["family-dsm"],
-			"ip":  ["tcp:5000", "tcp:5001", "tcp:6690", "tcp:445", "tcp:8443"],
-		},
-		{
-			"src": ["autogroup:shared"],
-			"dst": ["tag:nas"],
-			"ip":  ["tcp:443", "tcp:445"],
-		},
-		{
-			"src": ["autogroup:shared"],
-			"dst": ["autogroup:internet"],
-			"ip":  ["*"],
-		},
 	],
 
 	"ssh": [
