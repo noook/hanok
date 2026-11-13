@@ -29,6 +29,13 @@ services:
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      # Loki keeps logs forever by default. Delete everything older than 30 days (the compactor does it, hourly;
+      # Plouf's privacy notice promises 30 days for browser measures). run-loki.sh passes this to the loki binary.
+      LOKI_EXTRA_ARGS: >-
+        -store.retention=720h
+        -compactor.retention-enabled=true
+        -compactor.delete-request-store=filesystem
+        -compactor.working-directory=/data/loki/compactor
     ports:
       # Loopback only: an SSH tunnel still works; the tailnet name is the normal way in.
       - "127.0.0.1:${GRAFANA_PORT:-3317}:3000"
