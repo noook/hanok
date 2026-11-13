@@ -21,6 +21,7 @@ A project joins the external `observability` network and uses some of these:
 | Prometheus metrics it serves | labels `observability.scrape: "true"`, `observability.port: "<port>"`, optionally `observability.path: "/metrics"`; the container must be on the `observability` network |
 | OpenTelemetry (metrics, traces, logs) | `OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318` |
 | Dashboards and alert rules | keep them in the project's repo, in a folder with `dashboards/*.json` and `provisioning/alert-rules.yaml` (or `alert-rules/*.yaml`), and add one read-only mount of that folder at `/projects/<name>` to `stacks/observability/compose.yaml`. Dashboards land in a Grafana folder named after the project, capitalised; alert rules should name the same folder. |
+| Jump between a trace and its logs | write JSON log lines with a `trace_id` field and send them over OTLP: Loki shows a "Trace" link on the line, and Tempo's "Logs for this span" finds the lines of the same `service.name` (`grafana/provisioning/trace-log-links.yaml`) |
 | Alerts delivered | nothing: the homelab owns the contact point (Telegram) and the notification policy; alerts are grouped by folder |
 
 Datasource uids in dashboards and rules: `prometheus`, `loki`, `tempo`.
