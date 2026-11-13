@@ -1,0 +1,46 @@
+# Links between Tempo traces and Loki logs, both ways. Copied into Grafana's datasource provisioning by
+# entrypoint.sh. It redefines the image's Tempo and Loki datasources (same names and uids, read from
+# grafana/otel-lgtm's own grafana-datasources.yaml); Grafana applies files in name order, so this one
+# (hanok-...) overrides the image's (grafana-...). Keep the url lines equal to the image's.
+#
+# Projects write JSON log lines with `trace_id` and `span_id` fields (Plouf: plouf-web, plouf-worker), so
+# the link reads the id from the line itself.
+apiVersion: 1
+datasources:
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    url: http://127.0.0.1:3200
+    editable: true
+    jsonData:
+      # Trace -> logs: "Logs for this span" opens the Loki lines of the same service that carry the trace id.
+      tracesToLogsV2:
+        datasourceUid: loki
+        customQuery: true
+        query: '{$${__tags}} |= "$${__trace.traceId}"'
+        tags:
+          - key: service.name
+            value: service_name
+      serviceMap:
+        datasourceUid: prometheus
+      search:
+        hide: false
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: loki
+
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://127.0.0.1:3100
+    editable: true
+    jsonData:
+      # Log -> trace: the "trace_id" JSON field of a line becomes a link that opens the trace in Tempo.
+      derivedFields:
+        - name: trace_id
+          matcherType: regex
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+          urlDisplayLabel: 'Trace: $${__value.raw}'
