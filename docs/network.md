@@ -44,7 +44,7 @@ Infrastructure is tagged: it belongs to the tailnet, not to me, never expires, a
 | `grafana` | home | a container on `docker-host` | `tag:grafana` | Grafana's sidecar (ADR 0002) |
 | `obsidian` | home | a container on `docker-host` | `tag:obsidian` | the Obsidian vault's CouchDB sidecar (ADR 0006) |
 | `hermes` | home | an LXC on `tartiflette` | untagged (to be `tag:agent`) | the Hermes agent |
-| `family-dsm` | family | the Synology | untagged (to be `tag:nas`, `tag:exit-node`) | my family's NAS and exit node, shared with them; replaced by the DXP over time |
+| `family-dsm` | family | the Synology | untagged (to be `tag:nas`, `tag:exit-node`) | my family's NAS and exit node; replaced by the DXP over time |
 | `family-gateway` | family | a container on the DXP, kernel networking | `tag:exit-node`, `tag:subnet-router` | exit node, subnet router for the family site's LAN, `192.168.77.0/24` (`hosts/family-dxp/tailscale`) |
 | `family-dxp` | family | a container on the DXP, userspace | `tag:nas` | the DXP's web UI on `https://family-dxp.<tailnet>.ts.net`, and SMB |
 
@@ -58,5 +58,5 @@ The DXP needs two devices because UGOS's own web server holds port 443 on every 
 - **Infrastructure runs with `--accept-dns=false`.** It looks names up through its site's router; a NAS or gateway that sends its lookups to Tailscale's resolver can break the exit node it is (the Synology did).
 - **Personal devices accept routes** once every advertised range is unique (both sites renumbered); until then, only for a debugging session.
 - **Reach a tailnet device by its short name** (`docker-host`), or `https://<name>.<tailnet>.ts.net` for a served one. Home names like `docker-host.lan` only work at home.
-- **Exit nodes**: `ts-gateway` is my home IP when I'm away; the family gateway is my family's home IP, which they use abroad. A shared exit node needs "Allow use as an exit node" on its share.
-- **People** are invited into the tailnet by household (ADR 0008): the family (`group:family`) reaches its NAS, its exit node and its services (`tag:family`); my household (`group:home`) reaches its services (`tag:home`), and the family's NAS and services as guests. Members live in a secret. Runbook: `docs/runbooks/family-members.md`.
+- **Exit nodes**: `ts-gateway` is my home IP when I'm away; the family gateway is my family's home IP, which they use abroad. The family uses theirs through `via: tag:exit-node` (ADR 0008).
+- **People** are invited into the tailnet by household (ADR 0008): the family (`group:family`) reaches its NAS, its exit node and its services (`tag:family`); my household (`group:home`) reaches its services (`tag:home`), and the family's NAS and services as guests. Members live in the `TAILNET_GROUPS` secret (`docs/tailscale-policy.md`, "Households"). Runbook: `docs/runbooks/family-members.md`.

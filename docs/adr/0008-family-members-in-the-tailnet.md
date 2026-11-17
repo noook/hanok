@@ -33,4 +33,4 @@ My family used their own Tailscale accounts, and I shared them machines one by o
 - Their devices appear in my tailnet's console; someone with a tailnet of their own switches accounts in the Tailscale app.
 - Every exit node tagged `tag:exit-node` is open to `group:family`. Today that is only the family's gateway; when `ts-gateway` is tagged, give exit nodes a site tag and narrow `via`.
 - Every apply needs the secret: without it the workflow stops before applying, and the tailnet keeps the last good policy.
-- The `autogroup:shared` grants stay until the migration is done, then go.
+- The family moved from shares to invitations in November 2026; the `autogroup:shared` grants are gone. Machines can still be shared by hand, but a shared user then reaches nothing until a grant names `autogroup:shared` again.

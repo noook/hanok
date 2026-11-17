@@ -31,7 +31,7 @@ tailscale/policy.hujson          hanok's part of the tailnet policy; tailscale/c
 docs/adr/                        why things are the way they are
 docs/conventions.md              labels, networks, naming, secrets
 docs/network.md                  sites, address ranges, names, every device on the tailnet
-docs/tailscale-policy.md         who may reach what on the tailnet, explained
+docs/tailscale-policy.md         who may reach what on the tailnet, explained; households and the TAILNET_GROUPS secret
 renovate.json                    image updates as pull requests
 ```
 
