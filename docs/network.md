@@ -24,12 +24,12 @@ A site's infrastructure on the tailnet, its gateway and its NAS, is named `<site
 
 ## Sites
 
-| Site | Router | LAN now | LAN target | Gateway on the tailnet |
-|---|---|---|---|---|
-| `home` | Bouygues Bbox Miami | `192.168.1.0/24` | `192.168.93.0/24` | `ts-gateway`, to be renamed `home-gateway` |
-| `family` | ISP box | `192.168.77.0/24` | done | `family-gateway` |
+| Site | Router | LAN | Gateway on the tailnet |
+|---|---|---|---|
+| `home` | Bouygues Bbox Miami | `192.168.93.0/24` | `home-gateway` |
+| `family` | ISP box | `192.168.77.0/24` | `family-gateway` |
 
-- **One range per site, numbered after its département** (93, 77). French ISP boxes default to `192.168.1.x` and `192.168.0.x`, so those are never used: wherever I am, my sites never collide with the network I'm on. Inside a site: `.1`–`.49` fixed infrastructure, `.50`–`.199` DHCP, `.254` the router.
+- **One range per site, numbered after its département** (93, 77). French ISP boxes default to `192.168.1.x` and `192.168.0.x`, so those are never used: wherever I am, my sites never collide with the network I'm on. Inside a site: `.1`–`.99` fixed addresses (`.1`–`.49` infrastructure, `.50`–`.99` anything else I pin), `.100`–`.250` DHCP, `.254` the router. A fixed address is never inside the DHCP range, and a box that only gets a DHCP reservation (such as the CI VM) still keeps its address below `.100`.
 - **Other people's networks are not mine to number.** A machine of mine on a friend's network joins as a single tagged device and advertises nothing.
 - **4via6** is the stopgap for a site that still overlaps: the gateway advertises its `192.168.1.0/24` under a site number, and a device there without Tailscale is reached by name, `http://192-168-1-23-via-77`, or by its IPv6 address (`tailscale debug via 77 192.168.1.23/32`). The family site used it (site 77) until it was renumbered; none does now.
 
@@ -39,7 +39,7 @@ Infrastructure is tagged: it belongs to the tailnet, not to me, never expires, a
 
 | Device | Site | Runs on | Tags | Role |
 |---|---|---|---|---|
-| `ts-gateway` | home | an LXC on `tartiflette` | untagged (to be `tag:exit-node`, `tag:subnet-router`) | exit node from home, subnet router for the home LAN |
+| `home-gateway` | home | an LXC on `tartiflette` | `tag:exit-node`, `tag:subnet-router` | exit node from home, subnet router for the home LAN |
 | `docker-host` | home | an LXC on `tartiflette` | the tags its projects need (ADR 0007) | every Compose stack |
 | `grafana` | home | a container on `docker-host` | `tag:grafana` | Grafana's sidecar (ADR 0002) |
 | `obsidian` | home | a container on `docker-host` | `tag:obsidian` | the Obsidian vault's CouchDB sidecar (ADR 0006) |
@@ -58,5 +58,5 @@ The DXP needs two devices because UGOS's own web server holds port 443 on every 
 - **Infrastructure runs with `--accept-dns=false`.** It looks names up through its site's router; a NAS or gateway that sends its lookups to Tailscale's resolver can break the exit node it is (the Synology did).
 - **Personal devices accept routes** once every advertised range is unique (both sites renumbered); until then, only for a debugging session.
 - **Reach a tailnet device by its short name** (`docker-host`), or `https://<name>.<tailnet>.ts.net` for a served one. Home names like `docker-host.lan` only work at home.
-- **Exit nodes**: `ts-gateway` is my home IP when I'm away; the family gateway is my family's home IP, which they use abroad. The family uses theirs through `via: tag:exit-node` (ADR 0008).
+- **Exit nodes**: `home-gateway` is my home IP when I'm away; the family gateway is my family's home IP, which they use abroad. The family uses theirs through `via: tag:exit-node` (ADR 0008).
 - **People** are invited into the tailnet by household (ADR 0008): the family (`group:family`) reaches its NAS, its exit node and its services (`tag:family`); my household (`group:home`) reaches its services (`tag:home`), and the family's NAS and services as guests. Members live in the `TAILNET_GROUPS` secret (`docs/tailscale-policy.md`, "Households"). Runbook: `docs/runbooks/family-members.md`.
