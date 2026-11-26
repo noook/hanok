@@ -57,9 +57,17 @@ Tags and names are changed in the admin console (Machines > Edit ACL tags / Edit
 
 Members reach everything; `tag:agent` reaches `tag:server:22` and `tag:grafana:443`; shared users reach `tag:nas` and the internet through their exit node; every other tag reaches nothing. Tests for each. The Proxmox firewall on `hermes` drops outbound traffic to the LAN except the router, as for `hanok-ci`. **Back:** revert the pull request.
 
-## 7. Renumber home to `192.168.93.0/24` (an evening at home)
+## 7. Renumber home to `192.168.93.0/24`: done
 
-The Bbox's LAN and DHCP range; DHCP reservations; static addresses on `tartiflette`, its LXCs and `hanok-ci` (and its firewall file); `home-gateway` advertises `192.168.93.0/24`. **Back:** the Bbox back to `192.168.1.0/24`.
+The Bbox's LAN is `192.168.93.0/24`, the router `.254`, DHCP `.100`–`.250`; everything fixed sits below `.100`. Steps, in the order that worked:
+
+1. Write down every address on `192.168.1.x` first: the Proxmox host, each LXC and VM with a static address, the DHCP reservations, the firewall files (`hosts/hanok-ci/firewall.fw.example`: the gateway and DNS addresses).
+2. Change the Bbox LAN and DHCP range. Every static guest drops off the network, the Proxmox host included: reach it from a machine with a temporary alias on the old range (`sudo ifconfig en0 alias 192.168.1.200`, then `sudo ifconfig en0 -alias 192.168.1.200` once it is fixed), and change `vmbr0` (address, gateway), `/etc/hosts` and `/etc/resolv.conf`.
+3. Give each guest its new address in Proxmox. A guest that took its DNS from the host at boot needs a reboot after the host is fixed.
+4. `home-gateway` advertises `192.168.93.0/24` (`tailscale set --advertise-routes=192.168.93.0/24`); with `tag:subnet-router` the policy approves the route by itself.
+5. Redo the Bbox DHCP reservations (they are lost with the old range), the CI VM's included, then reboot the VM so it takes its lease. Its Proxmox firewall rules need the gateway's new address (DNS) and the new address of `home-gateway` (SSH via the tailnet).
+
+**Back:** the Bbox back to `192.168.1.0/24`.
 
 ## 8. Renumber the family site to `192.168.77.0/24` (remotely, someone at home there)
 
