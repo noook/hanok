@@ -20,6 +20,7 @@
 	"hosts": {
 		"macnook-pro": "100.99.84.107",
 		"family-dsm":  "100.126.142.105",
+		"hermes":      "100.107.248.72",
 	},
 
 	// A site's range is approved when its gateway advertises it; any exit node is, once tagged.
@@ -94,6 +95,13 @@
 		{
 			"src":    "macnook-pro",
 			"accept": ["1.1.1.1:443", "family-dsm:5000", "tag:obsidian:443", "tag:family:443"],
+		},
+		// The agent runs commands on the Mac over SSH (its rekordbox library, local files): one Hermes, not two.
+		// Today rule 1 covers it, hermes being mine. When hermes gets tag:agent, this test fails until a grant
+		// gives that tag macnook-pro on tcp:22, and only that.
+		{
+			"src":    "hermes",
+			"accept": ["macnook-pro:22"],
 		},
 		{
 			"src":    "group:family",

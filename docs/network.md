@@ -43,7 +43,7 @@ Infrastructure is tagged: it belongs to the tailnet, not to me, never expires, a
 | `docker-host` | home | an LXC on `tartiflette` | the tags its projects need (ADR 0007) | every Compose stack |
 | `grafana` | home | a container on `docker-host` | `tag:grafana` | Grafana's sidecar (ADR 0002) |
 | `obsidian` | home | a container on `docker-host` | `tag:obsidian` | the Obsidian vault's CouchDB sidecar (ADR 0006) |
-| `hermes` | home | an LXC on `tartiflette` | untagged (to be `tag:agent`) | the Hermes agent |
+| `hermes` | home | an LXC on `tartiflette` | untagged (to be `tag:agent`) | the Hermes agent; SSHes into `macnook-pro` for what lives only on the Mac, with a key the Mac accepts from this address only |
 | `family-dsm` | family | the Synology | untagged (to be `tag:nas`, `tag:exit-node`) | my family's NAS and exit node; replaced by the DXP over time |
 | `family-gateway` | family | a container on the DXP, kernel networking | `tag:exit-node`, `tag:subnet-router` | exit node, subnet router for the family site's LAN, `192.168.77.0/24` (`hosts/family-dxp/tailscale`) |
 | `family-dxp` | family | a container on the DXP, userspace | `tag:nas` | the DXP's web UI on `https://family-dxp.<tailnet>.ts.net`, and SMB |
